@@ -14,7 +14,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** SQLite database helper for Smart Pantry Manager. */
+/**
+ * SQLite database helper for Smart Pantry Manager.
+ * Handles local pantry data, recipe data and recipe ingredients.
+ * The class also performs the strict recipe matching used to
+ * determine which recipes can be prepared from the pantry.
+ */
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "smart_pantry.db";
