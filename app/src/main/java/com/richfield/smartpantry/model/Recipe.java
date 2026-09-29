@@ -6,7 +6,8 @@ package com.richfield.smartpantry.model;
  * This class holds the basic information displayed for a recipe:
  * the recipe ID, name, description and preparation method.
  *
- * Database operations are handled by DatabaseHelper.
+ * The class does not contain database logic. Database operations
+ * are handled by DatabaseHelper.
  */
 public class Recipe {
 
