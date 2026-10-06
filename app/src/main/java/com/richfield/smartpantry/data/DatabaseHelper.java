@@ -14,12 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * SQLite database helper for Smart Pantry Manager.
- * Handles local pantry data, recipe data and recipe ingredients.
- * The class also performs the strict recipe matching used to
- * determine which recipes can be prepared from the pantry.
- */
+/** SQLite database helper for Smart Pantry Manager. */
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "smart_pantry.db";
@@ -195,51 +190,93 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return result;
     }
 
-    /** Returns recipes only when every required ingredient is available in sufficient quantity. */
+    /**
+     * Returns recipes only when every required ingredient
+     * is available in sufficient quantity.
+     *
+     * Duplicate pantry records of the same ingredient
+     * are combined when calculating the available quantity.
+     */
     public List<Recipe> getStrictSuggestions() {
         List<Recipe> matches = new ArrayList<>();
         List<PantryItem> pantry = getAllPantryItems();
 
         for (Recipe recipe : getAllRecipes()) {
             boolean matchesAllRequired = true;
+
             for (RecipeIngredient ingredient : getRecipeIngredients(recipe.getId())) {
+                // Optional ingredients do not affect strict matching.
                 if (ingredient.isOptional()) {
                     continue;
                 }
-                if (findCompatiblePantryItem(pantry, ingredient) == null) {
+
+                // Every required ingredient must have enough total quantity in the pantry.
+                if (!hasSufficientPantryQuantity(pantry, ingredient)) {
                     matchesAllRequired = false;
                     break;
                 }
             }
+
             if (matchesAllRequired) {
                 matches.add(recipe);
             }
         }
+
         return matches;
     }
 
-    private PantryItem findCompatiblePantryItem(List<PantryItem> pantry,
-                                                RecipeIngredient required) {
+    /**
+     * Checks whether the pantry contains enough total quantity
+     * of a required ingredient.
+     *
+     * Multiple pantry records containing the same ingredient
+     * are combined before the quantity is compared.
+     */
+    private boolean hasSufficientPantryQuantity(
+            List<PantryItem> pantry,
+            RecipeIngredient required) {
+
         String requiredName = normaliseIngredientName(required.getName());
         String requiredUnit = normalise(required.getUnit());
-        double requiredAmount = convertToBaseUnit(required.getQuantity(), requiredUnit);
+        double requiredAmount = convertToBaseUnit(
+                required.getQuantity(), requiredUnit);
+
+        if (requiredAmount < 0) {
+            return false;
+        }
+
+        double totalPantryAmount = 0;
 
         for (PantryItem item : pantry) {
+            // Ingredient names must match after normalisation.
             if (!requiredName.equals(normaliseIngredientName(item.getName()))) {
                 continue;
             }
 
             String pantryUnit = normalise(item.getUnit());
+
+            // Do not combine incompatible units.
             if (!compatibleUnitGroup(pantryUnit, requiredUnit)) {
                 continue;
             }
 
-            double pantryAmount = convertToBaseUnit(item.getQuantity(), pantryUnit);
-            if (pantryAmount >= 0 && requiredAmount >= 0 && pantryAmount >= requiredAmount) {
-                return item;
+            double pantryAmount = convertToBaseUnit(
+                    item.getQuantity(), pantryUnit);
+
+            if (pantryAmount < 0) {
+                continue;
+            }
+
+            // Add this pantry record to the total.
+            totalPantryAmount += pantryAmount;
+
+            // We already have enough.
+            if (totalPantryAmount >= requiredAmount) {
+                return true;
             }
         }
-        return null;
+
+        return false;
     }
 
     // ========================= MATCHING HELPERS =========================
