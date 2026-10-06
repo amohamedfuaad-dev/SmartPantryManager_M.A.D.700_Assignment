@@ -17,6 +17,10 @@ import com.richfield.smartpantry.data.DatabaseHelper;
 import com.richfield.smartpantry.model.PantryItem;
 import com.richfield.smartpantry.util.AppExecutors;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 /**
  * Form used for adding and editing pantry ingredients.
  */
@@ -121,12 +125,14 @@ public class AddEditIngredientActivity extends AppCompatActivity {
         String unit = spinnerUnit.getSelectedItem().toString();
         String expiry = edtExpiry.getText().toString().trim();
 
+        // Validate ingredient name
         if (TextUtils.isEmpty(name)) {
             edtName.setError("Enter an ingredient name.");
             edtName.requestFocus();
             return;
         }
 
+        // Validate quantity
         if (TextUtils.isEmpty(quantityText)) {
             edtQuantity.setError("Enter a quantity.");
             edtQuantity.requestFocus();
@@ -142,10 +148,34 @@ public class AddEditIngredientActivity extends AppCompatActivity {
             return;
         }
 
+        // Quantity must be greater than zero
         if (quantity <= 0) {
             edtQuantity.setError("Quantity must be greater than zero.");
             edtQuantity.requestFocus();
             return;
+        }
+
+        // Expiry date is optional, but if entered it must be YYYY-MM-DD
+        if (!TextUtils.isEmpty(expiry)) {
+            SimpleDateFormat dateFormat =
+                    new SimpleDateFormat("yyyy-MM-dd");
+            dateFormat.setLenient(false);
+
+            try {
+                Date date = dateFormat.parse(expiry);
+
+                if (date == null || !expiry.equals(dateFormat.format(date))) {
+                    edtExpiry.setError("Use the format YYYY-MM-DD.");
+                    edtExpiry.requestFocus();
+                    return;
+                }
+            } catch (ParseException e) {
+                edtExpiry.setError(
+                        "Enter a valid date in the format YYYY-MM-DD."
+                );
+                edtExpiry.requestFocus();
+                return;
+            }
         }
 
         PantryItem item = new PantryItem(
@@ -170,7 +200,9 @@ public class AddEditIngredientActivity extends AppCompatActivity {
 
                 Toast.makeText(
                         this,
-                        ingredientId == -1 ? "Ingredient added." : "Ingredient updated.",
+                        ingredientId == -1
+                                ? "Ingredient added."
+                                : "Ingredient updated.",
                         Toast.LENGTH_SHORT
                 ).show();
                 finish();
